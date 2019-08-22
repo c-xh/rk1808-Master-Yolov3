@@ -1,6 +1,7 @@
 package com.rockchip.inno.master_yolov3_demo;
 
 import android.app.Activity;
+import android.opengl.GLSurfaceView;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.TextureView;
@@ -37,17 +38,21 @@ public class CameraActivity extends Activity {
     long t5 = System.currentTimeMillis();
     long t6 = System.currentTimeMillis();
 
-    LiveCameraView liveCameraView;
-    TextureView textureView;
+//    LiveCameraView liveCameraView;
+//    TextureView textureView;
 
+    private GLSurfaceView mGLSurfaceView;
+    private CameraSurfaceRender mRender;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_live_camera);
-        liveCameraView = (LiveCameraView) findViewById(R.id.liveCameraView);
-        textureView = (TextureView) findViewById(R.id.textureView);
-//        liveCameraView.setTextureView(textureView);
-        liveCameraView.startCamera();
+
+        mGLSurfaceView = (GLSurfaceView) findViewById(R.id.gl_surface_view);
+        mGLSurfaceView.setEGLContextClientVersion(3);
+        mRender = new CameraSurfaceRender(mGLSurfaceView, null);
+        mGLSurfaceView.setRenderer(mRender);
+        mGLSurfaceView.setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY);
         if (mBaseTcpClient == null) {
             mBaseTcpClient = new TCPClientConnect();
             mBaseTcpClient.setCallback(new TCPClientCallback() {
@@ -140,20 +145,26 @@ public class CameraActivity extends Activity {
     @Override
     public void onPause() {
         super.onPause();
-
-        mBaseTcpClient.disconnect();
-        if (liveCameraView!=null){
-            liveCameraView.stopCamera();
-        }
+        mGLSurfaceView.onPause();
+//        if (liveCameraView!=null){
+//            liveCameraView.stopCamera();
+//        }
     }
 
     @Override
     public void onResume() {
         super.onResume();
+        mGLSurfaceView.onResume();
 
-        if (liveCameraView!=null){
-            liveCameraView.startCamera();
-        }
+//        if (liveCameraView!=null){
+//            liveCameraView.startCamera();
+//        }
+    }
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        mBaseTcpClient.disconnect();
+        System.exit(0);
     }
 
 }

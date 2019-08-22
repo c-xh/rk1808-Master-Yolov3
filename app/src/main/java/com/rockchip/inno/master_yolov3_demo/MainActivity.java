@@ -36,15 +36,18 @@ public class MainActivity extends Activity {
     public int CAMERA_NUM = 1;
     public static final int RGB_CAMERA_ID = 0;
     public static final int INFRARED_CAMERA_ID = 1;
-    private Mat mRgbaDraw;
-    private Mat mRgbaFrame;
+    //    private Mat mRgbaDraw;
+//    private Mat mRgbaFrame;
     TCPClientConnect mBaseTcpClient;
     String ip = "192.168.180.8";
     int port = 8002;
-    List<DetectResult> detectResultList = new ArrayList<>();
-    private final Object receiveLock = new Object();
-    private final Object resultLock = new Object();
-    private boolean receiveResult = true;
+    //    private final Object receiveLock = new Object();
+    //    private final Object resultLock = new Object();
+    private final Object q0Lock = new Object();
+    private final Object q1Lock = new Object();
+    private final Object q2Lock = new Object();
+    private final Object q3Lock = new Object();
+//    private boolean receiveResult = true;
 
 
     @Override
@@ -62,45 +65,58 @@ public class MainActivity extends Activity {
 
                 @Override
                 public void tcp_receive(List<byte[]> buffer) {
-                    synchronized (receiveLock) {
+//                    synchronized (receiveLock) {
 //                        Log.d(TAG, "tcp_receive: " + bytes_Srting.byteArray2HexString(buffer));
-                        List<Object[]> resultObject = new ArrayList<>();
-                        try {
+                    List<Object[]> resultObject = new ArrayList<>();
+                    try {
 
-                            t4= System.currentTimeMillis();
-                            for (int i = 0; i < buffer.size(); i++) {
-                                Object[] oo = ParseData.parse(buffer.get(i), true);
-                                if (oo != null) {
-                                    resultObject.add(oo);
-                                }
+                        cameraFrameQueue[1].t4 = System.currentTimeMillis();
+                        for (int i = 0; i < buffer.size(); i++) {
+                            Object[] oo = ParseData.parse(buffer.get(i), true);
+                            if (oo != null) {
+                                resultObject.add(oo);
                             }
-                            t5= System.currentTimeMillis();
-                            detectFps = 1000.0f / (System.currentTimeMillis() - lastDetectTime);
-//                            Log.d(TAG, "detectFps: " +detectFps +"  "+ ((System.currentTimeMillis()-lastDetectTime)));
-                            lastDetectTime = System.currentTimeMillis();
-                            generateDetectResult(resultObject);
-                            t6= System.currentTimeMillis();
-                        } catch (Exception e) {
-                            e.printStackTrace();
                         }
-
-                        StringBuilder sb =new StringBuilder();
-                        sb.append("一帧时间: " + (t6-t1));
-                        sb.append("\n");
-                        sb.append("复制时间: " + (t2-t1));
-                        sb.append("\n");
-                        sb.append("tcp发送时间: " + (t3-t2));
-                        sb.append("\n");
-                        sb.append("1808处理时间: " + (t4-t3));
-                        sb.append("\n");
-                        sb.append("解析数据: " + (t5-t4));
-                        sb.append("\n");
-                        sb.append("打包数据: " + (t6-t5));
-                        sb.append("\n");
-                        Log.d(TAG, sb.toString());
-                        receiveResult = true;
-                        receiveLock.notify();// 取消等待
+                        cameraFrameQueue[1].t5 = System.currentTimeMillis();
+//                            Log.d(TAG, "detectFps: " +detectFps +"  "+ ((System.currentTimeMillis()-lastDetectTime)));
+                        synchronized (q1Lock) {
+                            cameraFrameQueue[1].detectResultList = generateDetectResult(resultObject);
+                        }
+                        cameraFrameQueue[1].t6 = System.currentTimeMillis();
+                        detectFpsCount++;
+                        if (detectFpsCount % 10 == 0) {
+                            detectFps = 10000.0f / (System.currentTimeMillis() - lastDetectTime);
+                            lastDetectTime = System.currentTimeMillis();
+                            detectFpsCount = 0;
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
                     }
+
+                    Log.d(TAG, "推理帧率 : " + detectFps);
+                    StringBuilder sb = new StringBuilder();
+                    sb.append("一帧时间: " + (cameraFrameQueue[1].t6 - cameraFrameQueue[1].t1));
+                    sb.append("\n");
+                    sb.append("复制时间: " + (cameraFrameQueue[1].t2 - cameraFrameQueue[1].t1));
+                    sb.append("\n");
+                    sb.append("tcp发送时间: " + (cameraFrameQueue[1].t3 - cameraFrameQueue[1].t2));
+                    sb.append("\n");
+                    sb.append("1808处理时间: " + (cameraFrameQueue[1].t4 - cameraFrameQueue[1].t3));
+                    sb.append("\n");
+                    sb.append("解析数据: " + (cameraFrameQueue[1].t5 - cameraFrameQueue[1].t4));
+                    sb.append("\n");
+                    sb.append("打包数据: " + (cameraFrameQueue[1].t6 - cameraFrameQueue[1].t5));
+                    sb.append("\n");
+                    Log.d(TAG, sb.toString());
+//                        receiveResult = true;
+                    synchronized (q2Lock) {
+                        mBaseTcpClient.write(cameraFrameQueue[2].data);
+                    }
+                    refresh01();
+                    refresh12();
+
+
+//                    }
                 }
 
                 @Override
@@ -116,20 +132,22 @@ public class MainActivity extends Activity {
 
     float cameraFps = 0;
     float detectFps = 0;
+    int cameraFpsCount = 0;
+    int detectFpsCount = 0;
     long lastCameraTime = System.currentTimeMillis();
     long lastDetectTime = System.currentTimeMillis();
-    long t1 = System.currentTimeMillis();
-    long t2 = System.currentTimeMillis();
-    long t3 = System.currentTimeMillis();
 
-    long t4 = System.currentTimeMillis();
-    long t5 = System.currentTimeMillis();
-    long t6 = System.currentTimeMillis();
-
+    CameraFrameQueue[] cameraFrameQueue = new CameraFrameQueue[4];
 
     private void initCamera() {
         Log.d(TAG, "camera num: " + CAMERA_NUM);
 
+        writeRunnable = new sendSerialBufferThread();// 创建发送线程
+        sendSerialThread = new Thread(writeRunnable);
+        sendSerialThread.start();
+        for (int i = 0; i < cameraFrameQueue.length; i++) {
+            cameraFrameQueue[i] = new CameraFrameQueue();
+        }
         mRGBCameraView = findViewById(R.id.rgb_camera_view);
         mRGBCameraView.setCameraIndex(RGB_CAMERA_ID);
         mRGBCameraView.setCvCameraViewListener(new CameraBridgeViewBase.CvCameraViewListener2() {
@@ -145,73 +163,161 @@ public class MainActivity extends Activity {
             @SuppressLint("DefaultLocale")
             @Override
             public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
-                mRgbaFrame = inputFrame.rgba();
-//                mRgbaFrame = imread("/sdcard/123.jpg");
-//                Imgproc.resize(mRgbaFrame, mRgbaFrame, new Size(1280, 960));
-                cameraFps = 1000.0f / (System.currentTimeMillis() - lastCameraTime);
+                synchronized (q3Lock) {
+                    cameraFrameQueue[3].mat = inputFrame.rgba();
+//                    Mat mRgbaFrame = imread("/sdcard/123.jpg");
+//                    Imgproc.resize(mRgbaFrame, mRgbaFrame, new Size(1280, 960));
+//                    cameraFrameQueue[3].mat = mRgbaFrame;
+                    q3Lock.notify();// 取消等待
+                }
+                cameraFpsCount++;
+                if (cameraFpsCount % 10 == 0) {
+                    cameraFps = 10000.0f / (System.currentTimeMillis() - lastCameraTime);
+                    lastCameraTime = System.currentTimeMillis();
+                    cameraFpsCount = 0;
+                }
 //                Log.d(TAG, "onCameraFrame: " +cameraFps );
-                lastCameraTime = System.currentTimeMillis();
-
-
-                synchronized (receiveLock) {
-                    if (receiveResult) {
-                        t1 = System.currentTimeMillis();
-                        receiveResult = false;
-                        mRgbaDraw = mRgbaFrame.clone();
-                        Imgproc.resize(mRgbaFrame, mRgbaDraw, new Size(416, 416));
-                        byte[] data = mat2Byte(mRgbaDraw, ".jpg");
-                        t2= System.currentTimeMillis();
-                        int len = 16;
-                        String str2 = String.format("%01$-" + len + "s", String.valueOf(data.length));
-                        byte[] bytes = new byte[str2.getBytes().length + data.length];
-
-                        System.arraycopy(str2.getBytes(),0,bytes,0,str2.getBytes().length);
-                        System.arraycopy(data,0,bytes,str2.getBytes().length,data.length);
-//                        mBaseTcpClient.write(str2.getBytes());
-                        mBaseTcpClient.write(bytes);
-                        t3= System.currentTimeMillis();
-                        try {
-                            receiveLock.wait();
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
+                synchronized (q0Lock) {
+                    if (cameraFrameQueue[0].mat == null) {
+                        Log.d(TAG, "onCameraFrame: cameraFrameQueue[0].mat == null");
+                        return inputFrame.rgba();
+                    } else {
+                        cameraFrameQueue[0].drew();
+                        return cameraFrameQueue[0].mat;
                     }
                 }
-
-                synchronized (resultLock) {
-                    org.opencv.core.Scalar textColor = new Scalar(255, 0, 0);
-                    org.opencv.core.Point fpsPoint = new Point();
-                    fpsPoint.x = 10;
-                    fpsPoint.y = 40;
-                    Imgproc.putText(mRgbaFrame,
-                            String.format("cameraFps: %.2f", cameraFps),
-                            fpsPoint, Core.FONT_HERSHEY_DUPLEX,
-                            1, textColor);
-                    fpsPoint.y = 75;
-                    Imgproc.putText(mRgbaFrame,
-                            String.format("detectFps: %.2f", detectFps),
-                            fpsPoint, Core.FONT_HERSHEY_TRIPLEX,
-                            1, textColor);
-
-                    for (DetectResult detectResult : detectResultList) {
-                        detectResult.initPoint(mRgbaFrame.width(), mRgbaFrame.height());
-                        Imgproc.rectangle(mRgbaFrame,
-                                detectResult.getPt1(),
-                                detectResult.getPt2(),
-                                detectResult.getColor(), 2);
-                        Imgproc.putText(mRgbaFrame,
-                                String.format("%s %.2f", detectResult.getClassesName(), detectResult.getScores()),
-                                detectResult.getTextPt(),
-                                Core.FONT_HERSHEY_TRIPLEX,
-                                1, textColor);
-                    }
-
-                }
-                return mRgbaFrame;
             }
         });
         mRGBCameraView.setVisibility(CameraBridgeViewBase.VISIBLE);
 
+    }
+
+    class CameraFrameQueue {
+        public Mat mat;
+        public byte[] data;
+
+        long t1 = System.currentTimeMillis();
+        long t2 = System.currentTimeMillis();
+        long t3 = System.currentTimeMillis();
+        long t4 = System.currentTimeMillis();
+        long t5 = System.currentTimeMillis();
+        long t6 = System.currentTimeMillis();
+
+        public List<DetectResult> detectResultList;
+
+
+        public void drew() {
+            Log.d(TAG, "drew: " + String.format("detectFps: %.2f", detectFps));
+            if (detectResultList == null) {
+                Log.d(TAG, "drew: detectResultList==null ");
+                return;
+            }
+            org.opencv.core.Scalar textColor = new Scalar(255, 0, 0);
+            org.opencv.core.Point fpsPoint = new Point();
+            fpsPoint.x = 10;
+            fpsPoint.y = 40;
+            Imgproc.putText(mat,
+                    String.format("cameraFps: %.2f", cameraFps),
+                    fpsPoint, Core.FONT_HERSHEY_DUPLEX,
+                    1, textColor);
+            fpsPoint.y = 75;
+            Imgproc.putText(mat,
+                    String.format("detectFps: %.2f", detectFps),
+                    fpsPoint, Core.FONT_HERSHEY_TRIPLEX,
+                    1, textColor);
+
+            for (DetectResult detectResult : detectResultList) {
+                detectResult.initPoint(mat.width(), mat.height());
+                Imgproc.rectangle(mat,
+                        detectResult.getPt1(),
+                        detectResult.getPt2(),
+                        detectResult.getColor(), 2);
+                Imgproc.putText(mat,
+                        String.format("%s %.2f", detectResult.getClassesName(), detectResult.getScores()),
+                        detectResult.getTextPt(),
+                        Core.FONT_HERSHEY_TRIPLEX,
+                        1, textColor);
+            }
+        }
+    }
+
+    private Thread sendSerialThread;
+    private sendSerialBufferThread writeRunnable;
+
+    private class sendSerialBufferThread implements Runnable {
+
+        private Mat tmpFrame;
+
+        @Override
+        public void run() {
+            while (true) {
+                synchronized (q3Lock) {
+                    try {
+                        q3Lock.wait();
+                        cameraFrameQueue[3].t1 = System.currentTimeMillis();
+                        tmpFrame = cameraFrameQueue[3].mat.clone();
+                        Imgproc.resize(tmpFrame, tmpFrame, new Size(416, 416));
+                        byte[] data = mat2Byte(tmpFrame, ".jpg");
+                        cameraFrameQueue[3].t2 = System.currentTimeMillis();
+                        int len = 16;
+                        String str2 = String.format("%01$-" + len + "s", String.valueOf(data.length));
+                        cameraFrameQueue[3].data = new byte[str2.getBytes().length + data.length];
+
+                        System.arraycopy(str2.getBytes(), 0, cameraFrameQueue[3].data, 0, str2.getBytes().length);
+                        System.arraycopy(data, 0, cameraFrameQueue[3].data, str2.getBytes().length, data.length);
+
+                        cameraFrameQueue[3].t3 = System.currentTimeMillis();
+                        if (cameraFrameQueue[2].mat == null) {
+                            Log.d(TAG, "run: ------1111111111---------------");
+                            cameraFrameQueue[2] = cameraFrameQueue[3];
+                            if (cameraFrameQueue[1].mat == null) {
+                                Log.d(TAG, "run: -------2222222222--------------");
+                                cameraFrameQueue[1] = cameraFrameQueue[2];
+                                if (cameraFrameQueue[0].mat == null) {
+                                    Log.d(TAG, "run: -----3333333333----------------");
+                                    cameraFrameQueue[0] = cameraFrameQueue[1];
+                                    mBaseTcpClient.write(cameraFrameQueue[1].data);
+                                }
+                                Log.d(TAG, "run: -------444444444--------------");
+                                mBaseTcpClient.write(cameraFrameQueue[1].data);
+                            }
+                        }
+                        if ((System.currentTimeMillis() - lastDetectTime) > 2000) {
+                            synchronized (q1Lock) {
+                                mBaseTcpClient.write(cameraFrameQueue[1].data);
+                            }
+                        }
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+                refresh23();
+            }
+        }
+    }
+
+    public synchronized void refresh23() {
+        synchronized (q2Lock) {
+            synchronized (q3Lock) {
+                cameraFrameQueue[2] = cameraFrameQueue[3];
+            }
+        }
+    }
+
+    public synchronized void refresh12() {
+        synchronized (q1Lock) {
+            synchronized (q2Lock) {
+                cameraFrameQueue[1] = cameraFrameQueue[2];
+            }
+        }
+    }
+
+    public synchronized void refresh01() {
+        synchronized (q0Lock) {
+            synchronized (q1Lock) {
+                cameraFrameQueue[0] = cameraFrameQueue[1];
+            }
+        }
     }
 
     /**
@@ -254,10 +360,8 @@ public class MainActivity extends Activity {
         return image;
     }
 
-    private void generateDetectResult(List<Object[]> resultObject) {
-        synchronized (resultLock) {
-            detectResultList.clear();
-        }
+    private List<DetectResult> generateDetectResult(List<Object[]> resultObject) {
+        List<DetectResult> detectResultList = new ArrayList<>();
 //        Log.d(TAG, "generateDetectResult resultObject.size(): " + resultObject.size());
         if (resultObject.size() == 3) {
             Object[] boxes = resultObject.get(0);
@@ -272,14 +376,13 @@ public class MainActivity extends Activity {
 
             float[] data_t = new float[boxesShare[1]];
 
-            synchronized (resultLock) {
-                for (int i = 0; i < boxesShare[0]; i++) {
-                    System.arraycopy(boxesData, i * boxesShare[1], data_t, 0, boxesShare[1]);
-                    detectResultList.add(new DetectResult(data_t, scoresData[i], classesData[i]));
+            for (int i = 0; i < boxesShare[0]; i++) {
+                System.arraycopy(boxesData, i * boxesShare[1], data_t, 0, boxesShare[1]);
+                detectResultList.add(new DetectResult(data_t, scoresData[i], classesData[i]));
 //                Log.d(TAG, "generateDetectResult:" + i + " = " + detectResultList.get(i).toString());
-                }
             }
         }
+        return detectResultList;
     }
 
     @Override
@@ -295,6 +398,12 @@ public class MainActivity extends Activity {
     public void onResume() {
         super.onResume();
         initializeOpenCVEnv();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        System.exit(0);
     }
 
     private void initializeOpenCVEnv() {

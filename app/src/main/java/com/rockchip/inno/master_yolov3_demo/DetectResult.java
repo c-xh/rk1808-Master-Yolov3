@@ -69,8 +69,8 @@ public class DetectResult {
     DetectResult(float[] boxes, float scores, long classes) {
         x = boxes[0];
         y = boxes[1];
-        height = boxes[2];
-        width = boxes[3];
+        width = boxes[2];
+        height = boxes[3];
         this.scores = scores;
         this.classes = (int) classes;
 
@@ -89,8 +89,8 @@ public class DetectResult {
         return "DetectResult{" +
                 "x=" + x +
                 ", y=" + y +
-                ", height=" + height +
                 ", width=" + width +
+                ", height=" + height +
                 ", scores=" + scores +
                 ", classes=" + classes +
                 '}';
