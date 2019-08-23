@@ -2,7 +2,7 @@ package com.rockchip.inno.master_yolov3_demo.Util;
 
 import java.io.UnsupportedEncodingException;
 
-public class bytes_Srting {
+public class bytesConversionTool {
 
     public synchronized static String byteArray2HexString(byte[] src) {
         return byteArray2HexString(src, src.length);

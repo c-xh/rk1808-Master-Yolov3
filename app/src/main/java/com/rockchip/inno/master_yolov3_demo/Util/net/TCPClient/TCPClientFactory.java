@@ -1,9 +1,7 @@
 package com.rockchip.inno.master_yolov3_demo.Util.net.TCPClient;
 
-import android.util.Log;
 
-
-import com.rockchip.inno.master_yolov3_demo.Util.bytes_Srting;
+import com.rockchip.inno.master_yolov3_demo.Util.bytesConversionTool;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -84,8 +82,8 @@ public class TCPClientFactory {
      */
     public void writeMsg(byte[] buffer) throws IOException {
         if (out != null) {
-//            byte[] head = bytes_Srting.intToByteArray(buffer.length);
-//            Log.d("TAG", "writeMsg: "+bytes_Srting.byteArray2HexString(head));
+//            byte[] head = bytesConversionTool.intToByteArray(buffer.length);
+//            Log.d("TAG", "writeMsg: "+bytesConversionTool.byteArray2HexString(head));
 //            write(head);
             write(buffer);
         }
@@ -144,7 +142,7 @@ public class TCPClientFactory {
 
             byte[] countArr = new byte[8];
             while ((len = in.read(countArr, 0, 8)) > 0) {
-                int count = Integer.parseInt(bytes_Srting.byteArray2UTF8Str(countArr).replace(" ",""));
+                int count = Integer.parseInt(bytesConversionTool.byteArray2UTF8Str(countArr).replace(" ",""));
 //                Log.d(TAG, "read: " + count);
 
                 int[] buf = new int[count];// 缓冲区字节数组，信息不能大于此缓冲区
@@ -155,7 +153,7 @@ public class TCPClientFactory {
                     buf_t[1] = buffer[i * 4 + 1];
                     buf_t[2] = buffer[i * 4 + 2];
                     buf_t[3] = buffer[i * 4 + 3];
-                    buf[i] = bytes_Srting.byteArray2Int(buf_t);
+                    buf[i] = bytesConversionTool.byteArray2Int(buf_t);
 //                    Log.d(TAG, "read: +buf[" + i + "] = " + buf[i]);
                 }
                 List<byte[]> receiveList = new ArrayList<>();

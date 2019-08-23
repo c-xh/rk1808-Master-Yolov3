@@ -73,7 +73,7 @@ public class PermissionUtils {
             PERMISSION_BLUETOOTH_ADMIN
     };
 
-    interface PermissionGrant {
+    public interface PermissionGrant {
         void onPermissionGranted(int requestCode);
     }
 
@@ -259,7 +259,7 @@ public class PermissionUtils {
             Log.i(TAG, "onRequestPermissionsResult PERMISSION NOT GRANTED");
             //TODO
             String[] permissionsHint = activity.getResources().getStringArray(R.array.permissions);
-            openSettingActivity(activity,  "Result" + permissionsHint[requestCode]);
+            openSettingActivity(activity, "Result" + permissionsHint[requestCode]);
         }
 
     }

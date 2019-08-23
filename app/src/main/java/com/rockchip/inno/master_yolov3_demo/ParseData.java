@@ -2,7 +2,7 @@ package com.rockchip.inno.master_yolov3_demo;
 
 import android.util.Log;
 
-import com.rockchip.inno.master_yolov3_demo.Util.bytes_Srting;
+import com.rockchip.inno.master_yolov3_demo.Util.bytesConversionTool;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -22,7 +22,7 @@ public class ParseData {
     public synchronized static String getTpye(byte[] data) {
         byte[] typeName = new byte[8];
         System.arraycopy(data, 0, typeName, 0, typeName.length);
-        String typeNameStr = bytes_Srting.byteArray2UTF8Str(typeName).replace(" ", "");
+        String typeNameStr = bytesConversionTool.byteArray2UTF8Str(typeName).replace(" ", "");
 
         if (PARSE_DEBUG) if (PARSE_DEBUG) Log.d(TAG, "getTpye: " + typeNameStr);
         return typeNameStr;
@@ -31,14 +31,14 @@ public class ParseData {
     public synchronized static int getShapeLen(byte[] data) {
         byte[] shapeLenArr = new byte[8];
         System.arraycopy(data, 8, shapeLenArr, 0, shapeLenArr.length);
-        int shapeLen = Integer.parseInt(bytes_Srting.byteArray2UTF8Str(shapeLenArr).replace(" ", ""));
+        int shapeLen = Integer.parseInt(bytesConversionTool.byteArray2UTF8Str(shapeLenArr).replace(" ", ""));
         return shapeLen;
     }
 
     public synchronized static int getDataLen(byte[] data) {
         byte[] dataLenArr = new byte[8];
         System.arraycopy(data, 8 * 2, dataLenArr, 0, dataLenArr.length);
-        int dataLen = Integer.parseInt(bytes_Srting.byteArray2UTF8Str(dataLenArr).replace(" ", ""));
+        int dataLen = Integer.parseInt(bytesConversionTool.byteArray2UTF8Str(dataLenArr).replace(" ", ""));
         return dataLen;
     }
 
