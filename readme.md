@@ -1,4 +1,83 @@
 ## Android网络配置
+### 方法一： 运行配置脚本
+
+1、复制脚本
+
+将下载的脚本通过adb推送到安卓设备的data目录
+
+```shell
+adb root
+adb remount
+adb push configAndroidNet.sh /data
+```
+
+2、进入/data目录执行`sh configAndroidNet.sh`运行脚本，根据提示输入RK1808人工智能计算棒虚拟网卡（本例为“usb0”）和本地与外网相连接的网卡（本例为”eth0“），输入正确网卡名称即可自动配置，可以根据输出看到RK1808人工智能计算棒虚拟网卡在执行脚本后被设置了相关的信息
+
+```shell
+E:\origin_yolov3_demo adb shell
+remount succeeded
+rk3399:/ # cd data/
+rk3399:/data # sh configAndroidNet.sh
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+    inet6 ::1/128 scope host
+       valid_lft forever preferred_lft forever
+2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP group default qlen 1000
+    link/ether 76:bb:8e:01:27:e9 brd ff:ff:ff:ff:ff:ff
+    inet 172.16.9.113/24 brd 172.16.9.255 scope global eth0
+       valid_lft forever preferred_lft forever
+    inet6 fe80::1f1e:8e29:cfea:4f25/64 scope link flags 800
+       valid_lft forever preferred_lft forever
+3: sit0@NONE: <NOARP> mtu 1480 qdisc noop state DOWN group default qlen 1
+    link/sit 0.0.0.0 brd 0.0.0.0
+4: wlan0: <NO-CARRIER,BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state DORMANT group default qlen 1000
+    link/ether 04:e6:76:bc:83:1f brd ff:ff:ff:ff:ff:ff
+5: usb0: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN group default qlen 1000
+    link/ether 66:56:56:3d:5b:11 brd ff:ff:ff:ff:ff:ff
+Please input 1808 network card name:
+usb0
+Please input local network card name:
+eth0
+616 Route removed fe80::/64 dev usb0
+614 Address removed fe80::6456:56ff:fe3d:5b11/64 usb0 196 253
+616 Route updated fe80::/64 dev usb0
+200 0 Tether operation succeeded
+200 0 Tether operation succeeded
+200 0 ipfwd operation succeeded
+200 0 Nat operation succeeded
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+    inet6 ::1/128 scope host
+       valid_lft forever preferred_lft forever
+2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP group default qlen 1000
+    link/ether 76:bb:8e:01:27:e9 brd ff:ff:ff:ff:ff:ff
+    inet 172.16.9.113/24 brd 172.16.9.255 scope global eth0
+       valid_lft forever preferred_lft forever
+    inet6 fe80::1f1e:8e29:cfea:4f25/64 scope link flags 800
+       valid_lft forever preferred_lft forever
+3: sit0@NONE: <NOARP> mtu 1480 qdisc noop state DOWN group default qlen 1
+    link/sit 0.0.0.0 brd 0.0.0.0
+4: wlan0: <NO-CARRIER,BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state DORMANT group default qlen 1000
+    link/ether 04:e6:76:bc:83:1f brd ff:ff:ff:ff:ff:ff
+5: usb0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UNKNOWN group default qlen 1000
+    link/ether 66:56:56:3d:5b:11 brd ff:ff:ff:ff:ff:ff
+    inet 192.168.180.1/24 brd 192.168.180.255 scope global usb0
+       valid_lft forever preferred_lft forever
+    inet6 fe80::6456:56ff:fe3d:5b11/64 scope link
+       valid_lft forever preferred_lft forever
+rk3399:/data #
+```
+
+
+
+
+
+###方法二： 手敲命令行
+
 1、查看网卡名称
 
 Android进入shell后需要输入"su"命令切换到root用户，然后运行ip addr查看当前网卡的状态，可以看到eth0为本地网卡用于访问外网，usb0为usb网卡（RK1808人工智能计算棒虚拟网卡），在不同环境下网卡名称可能不一样，不同上网环境下外网网卡也可能不一样，以实际使用的为准。
