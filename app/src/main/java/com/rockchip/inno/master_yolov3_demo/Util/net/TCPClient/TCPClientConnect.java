@@ -115,7 +115,9 @@ public class TCPClientConnect implements Runnable {
      * 向发送线程写入发送数据
      */
     public void write(byte[] buffer) {
-        writeRunnable.write(buffer);
+        if (buffer!=null) {
+            writeRunnable.write(buffer);
+        }
     }
 
     /**

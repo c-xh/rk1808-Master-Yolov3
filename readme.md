@@ -1,15 +1,7 @@
-#部署步骤
+## Android网络配置
+1、查看网卡名称
 
-##RK1808人工智能计算棒部署
-
-1、RK1808人工智能计算棒网络配置
-
-需提前在win、mac、linux等平台完成RK1808人工智能计算棒网络配置(RNDIS)、模型拷贝以及设置开机启动。
-
-
-
-2、Android网络配置
-Android进入shell后需要输入"su"命令切换到root用户，然后查看当前网卡的状态
+Android进入shell后需要输入"su"命令切换到root用户，然后运行ip addr查看当前网卡的状态，可以看到eth0为本地网卡用于访问外网，usb0为usb网卡（RK1808人工智能计算棒虚拟网卡），在不同环境下网卡名称可能不一样，不同上网环境下外网网卡也可能不一样，以实际使用的为准。
 
 ```shell
 E:\master_yolov3_demo>adb shell
@@ -44,30 +36,37 @@ PING 192.168.180.8 (192.168.180.8) 56(84) bytes of data.
 13 packets transmitted, 0 received, 100% packet loss, time 12012ms
 ```
 
-可以看到计算棒的网卡为usb0目前未有任何配置，需要为usb0配置ip、子网掩码、路由表等
-
-这里我们使用开发板于外网连接的以太网卡eth0为例，如使用其他网卡上网只需
+2、运行一下命令配置usb0网卡IP掩码以及路由（如实际外网网卡为其他网卡需修改eth0为实际外网的网卡名称）
 
 ```shell
-rk3399:/ # ifconfig usb0 192.168.180.1 netmask 255.255.255.0 up
-le add from all oif usb0 table local_network
+ifconfig usb0 192.168.180.1 netmask 255.255.255.0 up
+ip rule add from all oif usb0 table local_network
 ip rule add from all iif usb0 table eth0
 ip route add 192.168.180.0/24 dev usb0 proto static table local_network
 ip route flush cache
+```
 
+3、配置网络共享
+
+```shell
 ndc tether interface add usb0
-ndc tether dns set 8.8.4.4 8.8.8.rk3399:/ # ip rule add from all oif usb0 table local_network
-8
+ndc tether dns set 8.8.4.4 8.8.8.8
 ndc ipfwd enable tethering
 ndc nat enable usb0 eth0 0
+```
+
+运行流程如下：
+
+```shell
+
+rk3399:/ # ifconfig usb0 192.168.180.1 netmask 255.255.255.0 up
+rk3399:/ # ip rule add from all oif usb0 table local_network
 rk3399:/ # ip rule add from all iif usb0 table eth0
 rk3399:/ # ip route add 192.168.180.0/24 dev usb0 proto static table local_network
 rk3399:/ # ip route flush cache
-rk3399:/ #
 rk3399:/ # ndc tether interface add usb0
 616 Route removed fe80::/64 dev usb0
-614 Address removed fe80::3466:1aff:feea:ab59/64 usb0 196 253
-616 Route updated fe80::/64 dev usb0
+614 Address removed fe80::ac40:92ff:fe3c:e344/64 usb0 128 253
 200 0 Tether operation succeeded
 rk3399:/ # ndc tether dns set 8.8.4.4 8.8.8.8
 200 0 Tether operation succeeded
@@ -76,11 +75,9 @@ rk3399:/ # ndc ipfwd enable tethering
 rk3399:/ # ndc nat enable usb0 eth0 0
 200 0 Nat operation succeeded
 rk3399:/ #
-
-
 ```
 
-再次查看
+4、再次查看再次运行`ip addr`可看到usb0已有配置ip地址，运行` ip route`可看到180网段的路由也以添加
 
 ```shell
 rk3399:/ # ip addr

@@ -1,8 +1,6 @@
 package com.rockchip.inno.master_yolov3_demo;
 
-import android.Manifest;
 import android.annotation.SuppressLint;
-import android.app.Activity;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.v7.app.AppCompatActivity;
@@ -19,17 +17,14 @@ import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
-import org.opencv.core.Core;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfByte;
-import org.opencv.core.Point;
-import org.opencv.core.Scalar;
-import org.opencv.core.Size;
 import org.opencv.imgcodecs.Imgcodecs;
-import org.opencv.imgproc.Imgproc;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import static android.os.SystemClock.sleep;
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
@@ -42,20 +37,21 @@ public class MainActivity extends AppCompatActivity {
     TCPClientConnect mBaseTcpClient;
     String ip = "192.168.180.8";
     int port = 8002;
-
-    private final Object q0Lock = new Object();
-    private final Object q1Lock = new Object();
-    private final Object q2Lock = new Object();
-    private final Object q3Lock = new Object();
+    CameraFrameBufferQueue cameraFrameBufferQueue;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        initCamera();
         PermissionUtils.requestPermission(this, PermissionUtils.CODE_CAMERA, mPermissionGrant);
         PermissionUtils.requestPermission(this, PermissionUtils.READ_EXTERNAL_STORAGE, mPermissionGrant);
         PermissionUtils.requestPermission(this, PermissionUtils.READ_CODE_WRITE_EXTERNAL_STORAGE, mPermissionGrant);
+        initTcp();
+        cameraFrameBufferQueue = new CameraFrameBufferQueue(mBaseTcpClient);
+        initCamera();
+    }
+
+    private void initTcp() {
 
         if (mBaseTcpClient == null) {
             mBaseTcpClient = new TCPClientConnect();
@@ -75,24 +71,15 @@ public class MainActivity extends AppCompatActivity {
                                 resultObject.add(oo);
                             }
                         }
-                        synchronized (q1Lock) {
-                            cameraFrameQueue[1].detectResultList = generateDetectResult(resultObject);
-                        }
-                        detectFpsCount++;
-                        if (detectFpsCount % 10 == 0) {
-                            detectFps = 10000.0f / (System.currentTimeMillis() - lastDetectTime);
-                            lastDetectTime = System.currentTimeMillis();
-                            detectFpsCount = 0;
-                        }
+                        cameraFrameBufferQueue.setDetectResult(generateDetectResult(resultObject));
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
 
-                    synchronized (q2Lock) {
-                        mBaseTcpClient.write(cameraFrameQueue[2].data);
-                    }
-                    refresh01();
-                    refresh12();
+                    mBaseTcpClient.write(cameraFrameBufferQueue.getReadyJpgData());
+                    cameraFrameBufferQueue.draw();
+                    cameraFrameBufferQueue.calculateDetectFps();
+//                    sleep(1);
                 }
 
                 @Override
@@ -106,24 +93,9 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    float cameraFps = 0;
-    float detectFps = 0;
-    int cameraFpsCount = 0;
-    int detectFpsCount = 0;
-    long lastCameraTime = System.currentTimeMillis();
-    long lastDetectTime = System.currentTimeMillis();
-
-    CameraFrameQueue[] cameraFrameQueue = new CameraFrameQueue[4];
-
     private void initCamera() {
         Log.d(TAG, "camera num: " + CAMERA_NUM);
 
-        writeRunnable = new sendSerialBufferThread();// 创建发送线程
-        sendSerialThread = new Thread(writeRunnable);
-        sendSerialThread.start();
-        for (int i = 0; i < cameraFrameQueue.length; i++) {
-            cameraFrameQueue[i] = new CameraFrameQueue();
-        }
         mRGBCameraView = findViewById(R.id.rgb_camera_view);
         mRGBCameraView.setCameraIndex(RGB_CAMERA_ID);
         mRGBCameraView.setCvCameraViewListener(new CameraBridgeViewBase.CvCameraViewListener2() {
@@ -139,150 +111,20 @@ public class MainActivity extends AppCompatActivity {
             @SuppressLint("DefaultLocale")
             @Override
             public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
-                synchronized (q3Lock) {
-                    cameraFrameQueue[3].mat = inputFrame.rgba();
+                cameraFrameBufferQueue.putNewBuff(inputFrame.rgba());
 //                    Mat mRgbaFrame = imread("/sdcard/123.jpg");
 //                    Imgproc.resize(mRgbaFrame, mRgbaFrame, new Size(1280, 960));
 //                    cameraFrameQueue[3].mat = mRgbaFrame;
-                    q3Lock.notify();// 取消等待
-                }
-                cameraFpsCount++;
-                if (cameraFpsCount % 10 == 0) {
-                    cameraFps = 10000.0f / (System.currentTimeMillis() - lastCameraTime);
-                    lastCameraTime = System.currentTimeMillis();
-                    cameraFpsCount = 0;
-                }
-                synchronized (q0Lock) {
-                    if (cameraFrameQueue[0].mat == null) {
-                        Log.d(TAG, "onCameraFrame: cameraFrameQueue[0].mat == null");
-                        return inputFrame.rgba();
-                    } else {
-                        cameraFrameQueue[0].draw();
-                        return cameraFrameQueue[0].mat;
-                    }
+                cameraFrameBufferQueue.calculateCameraFps();
+                if (cameraFrameBufferQueue.cameraFrameBufferList[0].matBuff == null) {
+                    return inputFrame.rgba();
+                } else {
+                    return cameraFrameBufferQueue.cameraFrameBufferList[0].matBuff;
                 }
             }
         });
         mRGBCameraView.setVisibility(CameraBridgeViewBase.VISIBLE);
 
-    }
-
-    class CameraFrameQueue {
-        public Mat mat;
-        public byte[] data;
-        public List<DetectResult> detectResultList;
-
-        @SuppressLint("DefaultLocale")
-        public void draw() {
-//            Log.d(TAG, "推理帧率 : " + detectFps);
-//            Log.d(TAG, String.format("detectFps: %.2f", detectFps));
-            if (detectResultList == null) {
-                Log.d(TAG, "drew: detectResultList==null ");
-                return;
-            }
-            org.opencv.core.Scalar textColor = new Scalar(255, 0, 0);
-            org.opencv.core.Point fpsPoint = new Point();
-            fpsPoint.x = 10;
-            fpsPoint.y = 40;
-            Imgproc.putText(mat,
-                    String.format("cameraFps: %.2f", cameraFps),
-                    fpsPoint, Core.FONT_HERSHEY_DUPLEX,
-                    1, textColor);
-            fpsPoint.y = 75;
-            Imgproc.putText(mat,
-                    String.format("detectFps: %.2f", detectFps),
-                    fpsPoint, Core.FONT_HERSHEY_TRIPLEX,
-                    1, textColor);
-
-            for (DetectResult detectResult : detectResultList) {
-                detectResult.initPoint(mat.width(), mat.height());
-                Imgproc.rectangle(mat,
-                        detectResult.getPt1(),
-                        detectResult.getPt2(),
-                        detectResult.getColor(), 2);
-                Imgproc.putText(mat,
-                        String.format("%s %.2f", detectResult.getClassesName(), detectResult.getScores()),
-                        detectResult.getTextPt(),
-                        Core.FONT_HERSHEY_TRIPLEX,
-                        1, textColor);
-            }
-        }
-    }
-
-    private Thread sendSerialThread;
-    private sendSerialBufferThread writeRunnable;
-
-    private class sendSerialBufferThread implements Runnable {
-        private Mat tmpFrame;
-        boolean isRuning = true;
-
-        public void qiut() {
-            isRuning = false;
-        }
-
-        @Override
-        public void run() {
-            while (isRuning) {
-                synchronized (q3Lock) {
-                    try {
-                        q3Lock.wait();
-                        tmpFrame = cameraFrameQueue[3].mat.clone();
-                        Imgproc.resize(tmpFrame, tmpFrame, new Size(416, 416));
-                        byte[] data = mat2Byte(tmpFrame, ".jpg");
-                        int len = 16;
-                        String str2 = String.format("%01$-" + len + "s", String.valueOf(data.length));
-                        cameraFrameQueue[3].data = new byte[str2.getBytes().length + data.length];
-
-                        System.arraycopy(str2.getBytes(), 0, cameraFrameQueue[3].data, 0, str2.getBytes().length);
-                        System.arraycopy(data, 0, cameraFrameQueue[3].data, str2.getBytes().length, data.length);
-
-                        if (cameraFrameQueue[2].mat == null) {
-                            cameraFrameQueue[2] = cameraFrameQueue[3];
-                            if (cameraFrameQueue[1].mat == null) {
-                                cameraFrameQueue[1] = cameraFrameQueue[2];
-                                if (cameraFrameQueue[0].mat == null) {
-                                    cameraFrameQueue[0] = cameraFrameQueue[1];
-                                    mBaseTcpClient.write(cameraFrameQueue[1].data);
-                                }
-                                mBaseTcpClient.write(cameraFrameQueue[1].data);
-                            }
-                        }
-                        if ((System.currentTimeMillis() - lastDetectTime) > 2000) {
-                            synchronized (q1Lock) {
-                                mBaseTcpClient.write(cameraFrameQueue[1].data);
-                            }
-                        }
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                }
-                refresh23();
-            }
-        }
-    }
-
-    public synchronized void refresh23() {
-        synchronized (q2Lock) {
-            synchronized (q3Lock) {
-                cameraFrameQueue[2] = cameraFrameQueue[3];
-            }
-        }
-    }
-
-    public synchronized void refresh12() {
-        synchronized (q1Lock) {
-            synchronized (q2Lock) {
-                cameraFrameQueue[1] = cameraFrameQueue[2];
-            }
-        }
-    }
-
-    public synchronized void refresh01() {
-        synchronized (q0Lock) {
-            synchronized (q1Lock) {
-                cameraFrameQueue[0] = cameraFrameQueue[1];
-            }
-        }
     }
 
     /**
@@ -357,7 +199,6 @@ public class MainActivity extends AppCompatActivity {
         if (mRGBCameraView != null) {
             mRGBCameraView.disableView();
         }
-//        mBaseTcpClient.disconnect();
     }
 
     @Override
@@ -370,7 +211,6 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        writeRunnable.qiut();
         System.exit(0);
     }
 
@@ -441,7 +281,7 @@ public class MainActivity extends AppCompatActivity {
             switch (status) {
                 case LoaderCallbackInterface.SUCCESS: {
                     Log.i(TAG, "OpenCV loaded successfully");
-                    if(mRGBCameraView==null)return;
+                    if (mRGBCameraView == null) return;
                     mRGBCameraView.disableFpsMeter();
                     mRGBCameraView.enableView();
                     if (CAMERA_NUM >= 2) {
