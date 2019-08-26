@@ -96,18 +96,17 @@ public class CameraFrameBufferQueue {
                             cameraFrameBufferList[0] = cameraFrameBufferList[1];
                         }
                     }
-                    if ((System.currentTimeMillis() - lastDetectTime) > 2000) {
+                    if ((System.currentTimeMillis() - lastDetectTime) > 10000) {
                         lastDetectTime = System.currentTimeMillis();
-                        Log.d(TAG, "run: @@@@@@@@@@@@@@@@@@@@@@@@@");
                         mBaseTcpClient.write(getReadyJpgData());
                     }
 
                     isPutRunning = false;
-//                    try {
-//                        sleep(1);
-//                    } catch (InterruptedException e) {
-//                        e.printStackTrace();
-//                    }
+                    try {
+                        sleep(1);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
                 }
             }.start();
         }
@@ -115,7 +114,6 @@ public class CameraFrameBufferQueue {
 
     public byte[] getReadyJpgData() {
         if (cameraFrameBufferList[1].jpgData == null) {
-            Log.d(TAG, "getReadyJpgData: nulllllllllllllll");
             return null;
         }
         return cameraFrameBufferList[1].jpgData;

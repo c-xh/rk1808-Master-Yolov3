@@ -79,7 +79,7 @@ public class MainActivity extends AppCompatActivity {
                     mBaseTcpClient.write(cameraFrameBufferQueue.getReadyJpgData());
                     cameraFrameBufferQueue.draw();
                     cameraFrameBufferQueue.calculateDetectFps();
-//                    sleep(1);
+                    sleep(1);
                 }
 
                 @Override
