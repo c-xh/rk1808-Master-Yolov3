@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Master Yolov3 Rndis</string>
+    <string name="app_name">UtilLibrary</string>
     <string name="permission_get_accounts_hint">without this permissions,this function can not be opened,please the permissions.PERMISSION_GET_ACCOUNTS</string>
     <string name="permission_read_phone_hint">without this permissions,this function can not be opened,please the permissions.PERMISSION_READ_PHONE_STATE</string>
     <string name="permission_call_phone_hint">without this permissions,this function can not be opened,please the permissions.PERMISSION_CALL_PHONE</string>

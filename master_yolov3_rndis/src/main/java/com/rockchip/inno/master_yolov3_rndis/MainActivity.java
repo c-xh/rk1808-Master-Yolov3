@@ -9,18 +9,18 @@ import android.view.WindowManager;
 
 import androidx.annotation.NonNull;
 
-import com.rockchip.inno.master_yolov3_rndis.Util.PermissionUtils;
-import com.rockchip.inno.master_yolov3_rndis.Util.bytesConversionTool;
-import com.rockchip.inno.master_yolov3_rndis.Util.net.TCPClient.TCPClientCallback;
-import com.rockchip.inno.master_yolov3_rndis.Util.net.TCPClient.TCPClientConnect;
+import com.rockchip.inno.master_yolov3_rndis.TCPClient.TCPClientCallback;
+import com.rockchip.inno.master_yolov3_rndis.TCPClient.TCPClientConnect;
+import com.rockchip.inno.util_library.CameraFrameBufferQueue;
+import com.rockchip.inno.util_library.DetectResult;
+import com.rockchip.inno.util_library.ParseData;
+import com.rockchip.inno.util_library.PermissionUtils;
 
 import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Mat;
-import org.opencv.core.MatOfByte;
-import org.opencv.imgcodecs.Imgcodecs;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -47,13 +47,12 @@ public class MainActivity extends Activity {
         PermissionUtils.requestPermission(this, PermissionUtils.CODE_CAMERA, mPermissionGrant);
         PermissionUtils.requestPermission(this, PermissionUtils.READ_EXTERNAL_STORAGE, mPermissionGrant);
         PermissionUtils.requestPermission(this, PermissionUtils.READ_CODE_WRITE_EXTERNAL_STORAGE, mPermissionGrant);
+        cameraFrameBufferQueue = new CameraFrameBufferQueue();
         initTcp();
-        cameraFrameBufferQueue = new CameraFrameBufferQueue(mBaseTcpClient);
         initCamera();
     }
 
     private void initTcp() {
-
         if (mBaseTcpClient == null) {
             mBaseTcpClient = new TCPClientConnect();
             mBaseTcpClient.setCallback(new TCPClientCallback() {
@@ -92,6 +91,13 @@ public class MainActivity extends Activity {
             mBaseTcpClient.setTimeOut(10000);
             new Thread(mBaseTcpClient).start();
         }
+
+        cameraFrameBufferQueue.setOnFrameDataListener(new CameraFrameBufferQueue.onFrameData() {
+            @Override
+            public void newFrameData(byte[] data) {
+                mBaseTcpClient.write(data);
+            }
+        });
     }
 
     private void initCamera() {
@@ -126,46 +132,6 @@ public class MainActivity extends Activity {
         });
         mRGBCameraView.setVisibility(CameraBridgeViewBase.VISIBLE);
 
-    }
-
-    /**
-     * Mat转换成byte数组
-     *
-     * @param matrix        要转换的Mat
-     * @param fileExtension 格式为 ".jpg", ".png", etc
-     * @return
-     */
-    public static byte[] mat2Byte(Mat matrix, String fileExtension) {
-        MatOfByte mob = new MatOfByte();
-        Imgcodecs.imencode(fileExtension, matrix, mob);
-        byte[] byteArray = mob.toArray();
-        return byteArray;
-    }
-
-    public Mat byteAndMat(Mat image) {
-        int width = image.cols();
-        int height = image.rows();
-        int dims = image.channels();
-        byte[] data = new byte[width * height * dims];
-        image.get(0, 0, data); //Mat转byte
-        Log.d(TAG, "byteAndMat: " + bytesConversionTool.byteArray2HexString(data));
-        int index = 0;
-        int r = 0, g = 0, b = 0;
-        for (int row = 0; row < height; row++) {
-            for (int col = 0; col < width * dims; col += dims) {
-                index = row * width * dims + col;
-                b = data[index] & 0xff;
-                g = data[index + 1] & 0xff;
-                r = data[index + 2] & 0xff;
-
-                data[index] = (byte) b;
-                data[index + 1] = (byte) g;
-                data[index + 2] = (byte) r;
-            }
-        }
-
-        image.put(0, 0, data); //byte转Mat
-        return image;
     }
 
     private List<DetectResult> generateDetectResult(List<Object[]> resultObject) {
