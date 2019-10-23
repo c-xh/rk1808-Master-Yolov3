@@ -6,7 +6,7 @@ android {
 
     defaultConfig {
         applicationId "com.rockchip.inno.master_yolov3_libusb"
-        minSdkVersion 17
+        minSdkVersion 22
         targetSdkVersion 29
         versionCode 1
         versionName "1.0"
@@ -31,4 +31,6 @@ dependencies {
     testImplementation 'junit:junit:4.12'
     androidTestImplementation 'androidx.test:runner:1.2.0'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.2.0'
+    implementation project(path: ':util_library')
+    implementation project(path: ':opencv3-release')
 }

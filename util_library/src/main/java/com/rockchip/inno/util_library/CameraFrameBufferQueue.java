@@ -1,7 +1,5 @@
 package com.rockchip.inno.util_library;
 
-import android.annotation.SuppressLint;
-
 import org.opencv.core.Core;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfByte;
@@ -60,14 +58,14 @@ public class CameraFrameBufferQueue {
     }
 
     private byte[] setJpgData(Mat mat) {
-        int len = 16;
         byte[] data = mat2Byte(mat, ".jpg");
-        String str2 = String.format("%01$-" + len + "s", String.valueOf(data.length));
-        byte[] jpgData_t = new byte[str2.getBytes().length + data.length];
+//        int len = 16;
+//        String str2 = String.format("%01$-" + len + "s", String.valueOf(data.length));
+//        byte[] jpgData_t = new byte[str2.getBytes().length + data.length];
 
-        System.arraycopy(str2.getBytes(), 0, jpgData_t, 0, str2.getBytes().length);
-        System.arraycopy(data, 0, jpgData_t, str2.getBytes().length, data.length);
-        return jpgData_t;
+//        System.arraycopy(str2.getBytes(), 0, jpgData_t, 0, str2.getBytes().length);
+//        System.arraycopy(data, 0, jpgData_t, str2.getBytes().length, data.length);
+        return data;
     }
 
     private static boolean isPutRunning = false;
@@ -91,10 +89,11 @@ public class CameraFrameBufferQueue {
                             cameraFrameBufferList[0] = cameraFrameBufferList[1];
                         }
                     }
-                    if ((System.currentTimeMillis() - lastDetectTime) > 10000) {
+                    if ((System.currentTimeMillis() - lastDetectTime) > 5000) {
                         lastDetectTime = System.currentTimeMillis();
                         if (onFrameDataListener != null) {
                             onFrameDataListener.newFrameData(getReadyJpgData());
+//                            onFrameDataListener.newFrameData("abcdaasdasdasdas123dasdasd".getBytes());
                         }
                     }
 
@@ -138,7 +137,6 @@ public class CameraFrameBufferQueue {
         return byteArray;
     }
 
-    @SuppressLint("DefaultLocale")
     public Mat draw() {
 //            Log.d(TAG, "推理帧率 : " + detectFps);
 //            Log.d(TAG, String.format("detectFps: %.2f", detectFps));
@@ -184,9 +182,9 @@ public class CameraFrameBufferQueue {
         return cameraFrameBufferList[0].matBuff;
     }
 
-    private static onFrameData onFrameDataListener;
+    private onFrameData onFrameDataListener;
 
-    public static void setOnFrameDataListener(onFrameData listener_t) {
+    public void setOnFrameDataListener(onFrameData listener_t) {
         onFrameDataListener = listener_t;
     }
 
