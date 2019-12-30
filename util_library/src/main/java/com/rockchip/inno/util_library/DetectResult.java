@@ -8,15 +8,17 @@ import org.opencv.core.Scalar;
  * E-mail: shon.chen@rock-chips.com
  */
 public class DetectResult {
-    private static final String[] CLASSES = {"person", "bicycle", "car", "motorbike ", "aeroplane ", "bus ", "train", "truck ", "boat", "traffic light",
-            "fire hydrant", "stop sign ", "parking meter", "bench", "bird", "cat", "dog ", "horse ", "sheep", "cow",
-            "elephant", "bear", "zebra ", "giraffe", "backpack", "umbrella", "handbag", "tie", "suitcase", "frisbee",
-            "skis", "snowboard", "sports ball", "kite", "baseball bat", "baseball glove", "skateboard", "surfboard",
-            "tennis racket", "bottle", "wine glass", "cup", "fork", "knife ", "spoon", "bowl", "banana", "apple",
-            "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza ", "donut", "cake", "chair", "sofa",
-            "pottedplant", "bed", "diningtable", "toilet ", "tvmonitor", "laptop  ", "mouse    ", "remote ", "keyboard ",
-            "cell phone", "microwave ", "oven ", "toaster", "sink", "refrigerator ", "book", "clock", "vase",
-            "scissors ", "teddy bear ", "hair drier", "toothbrush "};
+    private static final String[] CLASSES = {"person", "bicycle", "car", "motorbike", "aeroplane",
+            "bus", "train", "truck", "boat", "traffic light", "fire hydrant", "stop sign",
+            "parking meter", "bench", "bird", "cat", "dog", "horse", "sheep", "cow", "elephant",
+            "bear", "zebra", "giraffe", "backpack", "umbrella", "handbag", "tie", "suitcase",
+            "frisbee", "skis", "snowboard", "sports ball", "kite", "baseball bat", "baseball glove",
+            "skateboard", "surfboard", "tennis racket", "bottle", "wine glass", "cup", "fork",
+            "knife", "spoon", "bowl", "banana", "apple", "sandwich", "orange", "broccoli", "carrot",
+            "hot dog", "pizza", "donut", "cake", "chair", "sofa", "pottedplant", "bed",
+            "diningtable", "toilet", "tvmonitor", "laptop ", "mouse   ", "remote", "keyboard",
+            "cell phone", "microwave", "oven", "toaster", "sink", "refrigerator", "book", "clock",
+            "vase", "scissors", "teddy bear", "hair drier", "toothbrush "};
 
     float x = 0;
     float y = 0;
@@ -92,7 +94,7 @@ public class DetectResult {
                 ", width=" + width +
                 ", height=" + height +
                 ", scores=" + scores +
-                ", classes=" + classes +
+                ", classes=" + classes + "[" + (classes < CLASSES.length ? CLASSES[classes] : "") + "]" +
                 '}';
     }
 }

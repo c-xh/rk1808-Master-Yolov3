@@ -34,7 +34,7 @@ public class usbDevicesManagerUtil {
     private static String TAG = "usbDevicesManagerUtil";
 
     private Context mContext;
-    private static boolean DEBUG = true;
+    private static boolean DEBUG = false;
     private static int TARGET_PRODUCT_ID = 0x0018;
     private static int TARGET_VENDOR_ID = 0x2207;
 
@@ -361,31 +361,57 @@ public class usbDevicesManagerUtil {
     // 且接收时接收的长度不能小于设备发送的长度，否则会出错这里我们采用统一接收最大长度，
     // 然后判断实际接收长度的方法来接收数据
 
+    private static boolean isSend = true;
+
     /**
      * 发送块数据
      *
      * @param buffer
      */
-    public void sendBulkMessageToPoint(byte[] buffer) {
-//        if (DEBUG) Log.d(TAG, "usbdata sendMessageToPoint: " + epBulkOut_0.toString());
-        myDeviceConnection.controlTransfer(1 << 5 | 1, 0x1f, 0, 0, buffer, buffer.length, 0);
+    public void sendBulkMessageToPoint(final byte[] buffer) {
+        if (isSend) {
+            new Thread() {
+                @Override
+                public void run() {
+                    isSend = false;
+//                    Log.d(TAG, "sendBulkMessageToPoint: " + bytesConversionTool.byteArray2HexString(buffer, 21));
+//                    Log.d(TAG, "sendBulkMessageToPoint: " + bytesConversionTool.byteArray2Str(buffer).substring(0, 21));
+////                    if (DEBUG) Log.d(TAG, "usbdata sendMessageToPoint: " + epBulkOut_0.toString());
+                    myDeviceConnection.controlTransfer(1 << 5 | 1, 0x1f, 0, 0, buffer, buffer.length, 0);
 
-        int count = 0;
-        while (count < buffer.length) {
-            int sendLen = 0;
-            if ((buffer.length - count) > MAX_BULK_TRANSFER_BUFF) {
-                sendLen = MAX_BULK_TRANSFER_BUFF;
-            } else {
-                sendLen = buffer.length - count;
-            }
-//            if (DEBUG) Log.d(TAG, "usbdata 准备发送数据 " + sendLen);
-            if (myDeviceConnection.bulkTransfer(epBulkOut_0, buffer, count, sendLen, -1) >= 0) {
-//                if (DEBUG)
-//                    Log.d(TAG, "usbdata sendMessageToPoint: 发送成功" + buffer.length);//0 或者正数表示成功
-            } else {
-                if (DEBUG) Log.d(TAG, "usbdata send error!!!");
-            }
-            count += sendLen;
+                    int len = 16;
+                    String str2 = String.format("start%01$-" + len + "s", String.valueOf(buffer.length));
+
+                    if (DEBUG) Log.d(TAG, "sendBulkMessageToPoint 准备发送数据头 " + str2);
+                    if (myDeviceConnection.bulkTransfer(epBulkOut_0, str2.getBytes(),  str2.getBytes().length, -1) >= 0) {
+                        if (DEBUG)
+                            Log.d(TAG, "sendBulkMessageToPoint sendMessageToPoint: 发送成功" + buffer.length);//0 或者正数表示成功
+                    } else {
+                        if (DEBUG) Log.d(TAG, "sendBulkMessageToPoint send error!!!");
+                        return;
+                    }
+
+                    int count = 0;
+                    while (count < buffer.length) {
+                        int sendLen = 0;
+                        if ((buffer.length - count) > MAX_BULK_TRANSFER_BUFF) {
+                            sendLen = MAX_BULK_TRANSFER_BUFF;
+                        } else {
+                            sendLen = buffer.length - count;
+                        }
+                        if (DEBUG) Log.d(TAG, "sendBulkMessageToPoint 准备发送数据 " + sendLen);
+                        if (myDeviceConnection.bulkTransfer(epBulkOut_0, buffer, count, sendLen, -1) >= 0) {
+                            if (DEBUG)
+                                Log.d(TAG, "sendBulkMessageToPoint sendMessageToPoint: 发送成功" + buffer.length);//0 或者正数表示成功
+                        } else {
+                            if (DEBUG) Log.d(TAG, "sendBulkMessageToPoint send error!!!");
+                        }
+                        count += sendLen;
+                    }
+
+                    isSend = true;
+                }
+            }.start();
         }
 
     }
@@ -406,67 +432,77 @@ public class usbDevicesManagerUtil {
             @Override
             public void run() {
                 while (isReceiveBulkMessage_0) {
-                    int ret = myDeviceConnection.bulkTransfer(epBulkIn_0, buffer, MAX_BULK_TRANSFER_BUFF, 1000);
-                    if (ret > 0) {
-                        String str = bytesConversionTool.byteArray2UTF8Str(buffer);
-//                        Log.d(TAG, "run: 收到长度头" + byteArrayToStr(buffer));
-                        if (!"start".equals(str.substring(0, 5))) {
-                            continue;
-                        }
-                        ret = Integer.parseInt(str.substring(5).replace(" ", ""));// 缓冲区字节数组，信息不能大于此缓冲区
-                        int count = 0;
-//                        Log.d(TAG, "run: 即将接收数据长度 = " + ret);
-                        while (count < ret) {
-                            int recLen = 0;
-                            if ((ret - count) > MAX_BULK_TRANSFER_BUFF) {
-                                recLen = MAX_BULK_TRANSFER_BUFF;
-                            } else {
-                                recLen = ret - count;
-                            }
-//                            Log.d(TAG, "run: count = " + count + "   recLen = " + recLen);
-                            int ret_t = myDeviceConnection.bulkTransfer(epBulkIn_0, buffer, count, MAX_BULK_TRANSFER_BUFF, 1000);
-                            if (recLen != ret_t) {
+                    try {
+                        Log.d(TAG, "receiveBulkMessageToPoint: 开始接收~~~~~~~~~");
+                        int ret = myDeviceConnection.bulkTransfer(epBulkIn_0, buffer, MAX_BULK_TRANSFER_BUFF, 5000);
+                        if (ret > 0) {
+                            String str = bytesConversionTool.byteArray2UTF8Str(buffer);
+                            Log.d(TAG, "receiveBulkMessageToPoint: 收到长度头" + bytesConversionTool.byteArray2UTF8Str(buffer));
+                            if (!"start".equals(str.substring(0, 5))) {
                                 continue;
                             }
-                            count += recLen;
-                        }
-//                        Log.d(TAG, "run: 收到数据 【" + bytesToHexString(buffer) + "】");
+                            ret = Integer.parseInt(str.substring(5, 21).replace(" ", ""));// 缓冲区字节数组，信息不能大于此缓冲区
+                            int count = 0;
+                            Log.d(TAG, "receiveBulkMessageToPoint: 即将接收数据长度 = " + ret);
+                            while (count < ret) {
+                                int recLen = 0;
+                                if ((ret - count) > MAX_BULK_TRANSFER_BUFF) {
+                                    recLen = MAX_BULK_TRANSFER_BUFF;
+                                } else {
+                                    recLen = ret - count;
+                                }
+//                            Log.d(TAG, "run: count = " + count + "   recLen = " + recLen);
+                                int ret_t = myDeviceConnection.bulkTransfer(epBulkIn_0, buffer, count, MAX_BULK_TRANSFER_BUFF, 1000);
+                                if (recLen != ret_t) {
+                                    continue;
+                                }
+                                count += recLen;
+                            }
+                            Log.d(TAG, "receiveBulkMessageToPoint: 收到数据 str【" + bytesConversionTool.byteArray2Str(buffer).substring(0, ret) + "】");
 
-                        int use = 0;
-                        byte[] countArr = new byte[8];
-                        System.arraycopy(buffer, 0, countArr, 0, countArr.length);
-                        use += countArr.length;
-//                        Log.d(TAG, "run: " + bytesToHexString(countArr));
-                        int[] buf = new int[Integer.parseInt(bytesConversionTool.byteArray2UTF8Str(countArr).replace(" ", ""))];// 缓冲区字节数组，信息不能大于此缓冲区
+                            Log.d(TAG, "receiveBulkMessageToPoint: 收到数据 hex【" + bytesConversionTool.byteArray2HexString(buffer, ret) + "】");
 
-                        for (int i = 0; i < buf.length; i++) {
+                            int use = 0;
+                            byte[] countArr = new byte[8];
+                            System.arraycopy(buffer, 0, countArr, 0, countArr.length);
+                            use += countArr.length;
+                            Log.d(TAG, "receiveBulkMessageToPoint: " + bytesConversionTool.byteArray2HexString(countArr));
+                            int[] buf = new int[Integer.parseInt(bytesConversionTool.byteArray2UTF8Str(countArr).replace(" ", ""))];// 缓冲区字节数组，信息不能大于此缓冲区
+
+                            for (int i = 0; i < buf.length; i++) {
 //                            Log.d(TAG, "run:  i = " + i);
-                            byte[] buf_t = new byte[4];
-                            buf_t[0] = buffer[use + i * 4];
-                            buf_t[1] = buffer[use + i * 4 + 1];
-                            buf_t[2] = buffer[use + i * 4 + 2];
-                            buf_t[3] = buffer[use + i * 4 + 3];
-                            buf[i] = bytesConversionTool.byteArray2Int(buf_t);
-//                            Log.d(TAG, "usbdata read: + buf[" + i + "] = " + buf[i]);
+                                byte[] buf_t = new byte[4];
+                                buf_t[0] = buffer[use + i * 4];
+                                buf_t[1] = buffer[use + i * 4 + 1];
+                                buf_t[2] = buffer[use + i * 4 + 2];
+                                buf_t[3] = buffer[use + i * 4 + 3];
+                                buf[i] = bytesConversionTool.byteArray2Int(buf_t);
+                                Log.d(TAG, "receiveBulkMessageToPoint read: + buf[" + i + "] = " + buf[i]);
+                            }
+                            use += buf.length * 4;
+                            List<byte[]> receiveList = new ArrayList<>();
+                            for (int i1 : buf) {
+                                byte[] tmp = new byte[i1];
+                                System.arraycopy(buffer, use, tmp, 0, i1);
+                                use += i1;
+                                Log.d(TAG, "receiveBulkMessageToPoint receiveList: " + bytesConversionTool.byteArray2HexString(tmp));
+                                receiveList.add(tmp);
+                            }
+                            listener.OnTsFrame(receiveList);
+                        } else {
+                            try {
+                                sleep(100);
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                            }
+                            Log.d(TAG, "receiveBulkMessageToPoint: 接收错误" + ret);
                         }
-                        use += buf.length * 4;
-                        List<byte[]> receiveList = new ArrayList<>();
-                        for (int i1 : buf) {
-                            byte[] tmp = new byte[i1];
-                            System.arraycopy(buffer, use, tmp, 0, i1);
-                            use += i1;
-                            receiveList.add(tmp);
-                        }
-                        listener.OnTsFrame(receiveList);
-                    } else {
-                        try {
-                            sleep(100);
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
-                        Log.d(TAG, "run: 接收错误" + ret);
+                    } catch (Exception e) {
+                        Log.e(TAG, "receiveBulkMessageToPoint error: " + e.toString());
+
                     }
                 }
+                Log.e(TAG, "receiveBulkMessageToPoint 已退出");
             }
         }.start();
     }

@@ -4,7 +4,7 @@ android {
     compileSdkVersion 29
     defaultConfig {
         applicationId "com.rockchip.inno.master_yolov3_rndis"
-        minSdkVersion 17
+        minSdkVersion 22
         targetSdkVersion 28
         versionCode 1
         versionName "1.0"

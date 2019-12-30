@@ -76,7 +76,7 @@ public class MainActivity extends Activity {
                         e.printStackTrace();
                     }
 
-                    mBaseTcpClient.write(cameraFrameBufferQueue.getReadyJpgData());
+                    writeFrameData(cameraFrameBufferQueue.getReadyJpgData());
                     cameraFrameBufferQueue.draw();
                     cameraFrameBufferQueue.calculateDetectFps();
                     sleep(1);
@@ -95,9 +95,21 @@ public class MainActivity extends Activity {
         cameraFrameBufferQueue.setOnFrameDataListener(new CameraFrameBufferQueue.onFrameData() {
             @Override
             public void newFrameData(byte[] data) {
-                mBaseTcpClient.write(data);
+                writeFrameData(data);
             }
         });
+    }
+
+    private void writeFrameData(byte[] data) {
+        if (data!=null) {
+            int len = 16;
+            String str2 = String.format("%01$-" + len + "s", String.valueOf(data.length));
+            byte[] jpgData_t = new byte[str2.getBytes().length + data.length];
+
+            System.arraycopy(str2.getBytes(), 0, jpgData_t, 0, str2.getBytes().length);
+            System.arraycopy(data, 0, jpgData_t, str2.getBytes().length, data.length);
+            mBaseTcpClient.write(jpgData_t);
+        }
     }
 
     private void initCamera() {

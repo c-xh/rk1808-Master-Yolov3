@@ -72,10 +72,7 @@ public class MainActivity extends Activity {
                         }
 
                         byte[]  bytes = cameraFrameBufferQueue.getReadyJpgData();
-                        int len = 16;
-                        String str2 = String.format("start%01$-" + len + "s", String.valueOf(bytes.length));
 
-                        mUsbDevicesManagerUtil.sendBulkMessageToPoint(str2.getBytes());
                         mUsbDevicesManagerUtil.sendBulkMessageToPoint(bytes);
                         cameraFrameBufferQueue.draw();
                         cameraFrameBufferQueue.calculateDetectFps();
@@ -87,13 +84,7 @@ public class MainActivity extends Activity {
                 cameraFrameBufferQueue.setOnFrameDataListener(new CameraFrameBufferQueue.onFrameData() {
                     @Override
                     public void newFrameData(byte[] data) {
-                        byte[]  bytes = cameraFrameBufferQueue.getReadyJpgData();
-                        int len = 16;
-                        String str2 = String.format("start%01$-" + len + "s", String.valueOf(bytes.length));
-
-                        mUsbDevicesManagerUtil.sendBulkMessageToPoint(str2.getBytes());
-                        mUsbDevicesManagerUtil.sendBulkMessageToPoint(bytes);
-//                        mUsbDevicesManagerUtil.sendBulkMessageToPoint(data);
+                        mUsbDevicesManagerUtil.sendBulkMessageToPoint(data);
                     }
                 });
                 initCamera();
@@ -143,6 +134,7 @@ public class MainActivity extends Activity {
     private List<DetectResult> generateDetectResult(List<Object[]> resultObject) {
         List<DetectResult> detectResultList = new ArrayList<>();
 //        Log.d(TAG, "generateDetectResult resultObject.size(): " + resultObject.size());
+//        Log.d(TAG, "generateDetectResult resultObject: " + resultObject.toString());
         if (resultObject.size() == 3) {
             Object[] boxes = resultObject.get(0);
             Object[] classes = resultObject.get(1);
