@@ -1,1 +1,1 @@
-include ':master_yolov3_rndis', ':master_yolov3_libusb', ':util_library', ':opencv3-release'
+include ':master_yolov3_rndis', ':master_yolov3_libusb', ':util_library', ':opencv-android'
